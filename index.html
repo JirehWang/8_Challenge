@@ -3,144 +3,193 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>八格挑戰：圖片隨機產生器</title>
+    <title>八格快速朗讀挑戰</title>
     <style>
-        :root { --accent: #6c5ce7; --bg: #0f0c29; }
-        body { font-family: 'PingFang TC', sans-serif; background: linear-gradient(to bottom, #0f0c29, #302b63, #24243e); color: white; display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
+        :root { --bg: #1e1e1e; --text: #eee; --accent: #00cec9; }
+        body { font-family: 'PingFang TC', sans-serif; background-color: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
         
-        /* 跑馬燈顯示區域 */
-        .display-box {
-            width: 350px; height: 350px; background: #000; border-radius: 15px;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 50px rgba(108, 92, 231, 0.6); margin: 30px 0;
-            border: 5px solid white; overflow: hidden; position: relative;
+        h1 { color: var(--accent); margin-bottom: 10px; }
+
+        /* 設定面板 */
+        .settings-panel {
+            background: rgba(255, 255, 255, 0.05); padding: 15px 25px; border-radius: 10px;
+            margin-bottom: 20px; text-align: center; width: 90%; max-width: 600px;
         }
-
-        #result-img { width: 100%; height: 100%; object-fit: cover; display: none; }
-        #placeholder-text { font-size: 20px; color: #888; text-align: center; padding: 20px; }
-
-        .settings {
-            background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 15px;
-            width: 100%; max-width: 450px; backdrop-filter: blur(10px);
-        }
-
-        .control-item { margin: 15px 0; }
-        label { display: block; margin-bottom: 8px; font-weight: bold; }
+        .control-group { margin: 10px 0; display: flex; align-items: center; justify-content: center; gap: 15px; }
+        input[type="range"] { width: 150px; }
         
-        input[type="file"], input[type="text"], input[type="range"] {
-            width: 100%; box-sizing: border-box; background: rgba(255,255,255,0.9); border-radius: 5px; padding: 8px;
-        }
-
-        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
         button {
-            flex: 1; padding: 15px; font-size: 18px; border: none; border-radius: 10px;
-            cursor: pointer; font-weight: bold; transition: 0.2s;
+            padding: 10px 25px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; transition: 0.3s;
         }
-        #startBtn { background: #00b894; color: white; }
-        #stopBtn { background: #d63031; color: white; }
-        button:disabled { opacity: 0.3; }
+        #startBtn { background-color: #0984e3; color: white; }
+        #resetBtn { background-color: #636e72; color: white; margin-left: 10px;}
+        button:hover { opacity: 0.8; }
+        button:disabled { background-color: #333; cursor: not-allowed; opacity: 0.5; }
 
-        .status { font-size: 14px; margin-top: 5px; color: #aaa; }
+        /* 倒數計時顯示 */
+        #timer-display { font-size: 36px; font-weight: bold; color: #fab1a0; margin: 10px 0; height: 40px; }
+        #game-status { font-size: 18px; margin-bottom: 15px; color: #aaa; }
+
+        /* 八宮格區域 */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr); /* 4欄 */
+            grid-template-rows: repeat(2, 1fr);    /* 2列 */
+            gap: 15px;
+            width: 100%; max-width: 800px;
+            margin-top: 10px;
+        }
+
+        .box {
+            position: relative;
+            background-color: #333;
+            aspect-ratio: 1 / 1; /* 保持正方形 */
+            border-radius: 8px;
+            overflow: hidden;
+            border: 3px solid transparent;
+            transition: border-color 0.3s;
+        }
+        
+        /* 挑戰中高亮格子 */
+        .box.active { border-color: var(--accent); box-shadow: 0 0 15px rgba(0, 206, 201, 0.5); }
+
+        .box img { width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.1s; }
+        
+        /* 遊戲開始時顯示圖片 */
+        .grid-container.playing .box img { opacity: 1; }
+        
+        /* 遊戲結束或準備時的遮罩 */
+        .box::after {
+            content: '?'; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-color: #444; color: #888; display: flex; align-items: center; justify-content: center;
+            font-size: 40px; font-weight: bold; opacity: 1; transition: opacity 0.1s;
+        }
+        .grid-container.playing .box::after { opacity: 0; } /* 開始時隱藏問號 */
+
     </style>
 </head>
 <body>
 
-    <h1>🎡 八格挑戰：隨機圖片抽籤</h1>
+    <h1>🎙️ 八格快速朗讀挑戰</h1>
 
-    <div class="display-box" id="displayBox">
-        <img id="result-img" src="" alt="挑戰內容">
-        <div id="placeholder-text">請先上傳圖片後按下「開始」</div>
-    </div>
-
-    <div class="settings">
-        <div class="control-item">
-            <label>🖼️ 上傳 8 張圖片：</label>
+    <div class="settings-panel">
+        <div class="control-group">
+            <label>🖼️ 1. 上傳 8 張圖片：</label>
             <input type="file" id="imageInput" accept="image/*" multiple>
-            <div class="status" id="fileStatus">目前已選擇 0 張</div>
         </div>
-
-        <div class="control-item">
-            <label>⚡ 旋轉速度 (毫秒)：</label>
-            <input type="range" id="speedRange" min="30" max="500" value="80">
-            <span id="speedVal">80ms</span>
+        <div class="control-group">
+            <label>⏱️ 2. 挑戰時間：</label>
+            <input type="range" id="timeRange" min="3" max="30" value="10">
+            <span id="timeVal">10秒</span>
         </div>
-
-        <div class="control-item">
-            <label>🎵 音樂網址 (MP3)：</label>
-            <input type="text" id="musicUrl" placeholder="例如: https://example.com/bgm.mp3">
+        <div class="control-group">
+            <label>🎵 3. 音樂檔案網址：</label>
+            <input type="text" id="musicUrl" placeholder="mp3 連結 (後補)">
         </div>
-
-        <div class="btn-group">
-            <button id="startBtn" onclick="startChallenge()">START</button>
-            <button id="stopBtn" onclick="stopChallenge()" disabled>STOP / 截圖</button>
+        <div class="control-group" style="margin-top: 15px;">
+            <button id="startBtn" onclick="startGame()">開始挑戰</button>
+            <button id="resetBtn" onclick="resetGame()">重置</button>
         </div>
     </div>
 
-    <audio id="bgm" loop></audio>
+    <div id="game-status">請上傳圖片後按「開始」</div>
+    <div id="timer-display"></div>
+
+    <div class="grid-container" id="grid">
+        <div class="box"><img id="img0"></div>
+        <div class="box"><img id="img1"></div>
+        <div class="box"><img id="img2"></div>
+        <div class="box"><img id="img3"></div>
+        <div class="box"><img id="img4"></div>
+        <div class="box"><img id="img5"></div>
+        <div class="box"><img id="img6"></div>
+        <div class="box"><img id="img7"></div>
+    </div>
+
+    <audio id="bgm"></audio>
 
     <script>
         let images = [];
-        let timer = null;
-        const imgDisplay = document.getElementById('result-img');
-        const placeholder = document.getElementById('placeholder-text');
-        const imageInput = document.getElementById('imageInput');
-        const fileStatus = document.getElementById('fileStatus');
+        let challengeTimer = null;
+        let timeLeft = 0;
+        const grid = document.getElementById('grid');
+        const startBtn = document.getElementById('startBtn');
+        const timerDisplay = document.getElementById('timer-display');
+        const statusDisplay = document.getElementById('game-status');
         const audio = document.getElementById('bgm');
 
-        // 監聽圖片上傳並轉為 Base64
-        imageInput.onchange = (e) => {
-            const files = Array.from(e.target.files);
+        // 時間數值更新
+        document.getElementById('timeRange').oninput = function() {
+            document.getElementById('timeVal').innerText = this.value + '秒';
+        };
+
+        // 處理圖片上傳
+        document.getElementById('imageInput').onchange = (e) => {
+            const files = Array.from(e.target.files).slice(0, 8); // 只取前8張
             images = [];
-            fileStatus.innerText = `讀取中...`;
             
             let loadedCount = 0;
-            files.forEach(file => {
+            files.forEach((file, index) => {
                 const reader = new FileReader();
                 reader.onload = (event) => {
+                    document.getElementById(`img${index}`).src = event.target.result;
                     images.push(event.target.result);
                     loadedCount++;
                     if (loadedCount === files.length) {
-                        fileStatus.innerText = `已成功載入 ${images.length} 張圖片`;
+                        statusDisplay.innerText = `成功載入 ${images.length} 張圖片，準備好了嗎？`;
+                        if(images.length < 8) statusDisplay.innerText += " (不足 8 張，將只顯示部分)";
                     }
                 };
                 reader.readAsDataURL(file);
             });
         };
 
-        // 速度數值更新
-        document.getElementById('speedRange').oninput = function() {
-            document.getElementById('speedVal').innerText = this.value + 'ms';
-        };
-
-        function startChallenge() {
-            if (images.length === 0) return alert('請先上傳至少一張圖片！');
+        function startGame() {
+            if (images.length === 0) return alert('請先上傳圖片！');
             
-            const speed = document.getElementById('speedRange').value;
+            const duration = parseInt(document.getElementById('timeRange').value);
             const musicLink = document.getElementById('musicUrl').value;
+            timeLeft = duration;
 
-            // 音樂播放
+            // 初始化狀態
+            startBtn.disabled = true;
+            grid.classList.add('playing'); // 顯示圖片，隱藏問號
+            statusDisplay.innerText = "唸出來！";
+            timerDisplay.innerText = `${timeLeft}s`;
+
+            // 音樂處理
             if (musicLink) {
                 audio.src = musicLink;
-                audio.play().catch(() => console.log("需點擊後播放"));
+                audio.play().catch(() => console.log("需互動才可播放"));
             }
 
-            placeholder.style.display = 'none';
-            imgDisplay.style.display = 'block';
-            document.getElementById('startBtn').disabled = true;
-            document.getElementById('stopBtn').disabled = false;
+            // 開始倒數
+            clearInterval(challengeTimer);
+            challengeTimer = setInterval(() => {
+                timeLeft--;
+                timerDisplay.innerText = `${timeLeft}s`;
 
-            // 開始輪播
-            timer = setInterval(() => {
-                const randomIdx = Math.floor(Math.random() * images.length);
-                imgDisplay.src = images[randomIdx];
-            }, speed);
+                // 結束挑戰
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
         }
 
-        function stopChallenge() {
-            clearInterval(timer);
+        function endGame() {
+            clearInterval(challengeTimer);
+            grid.classList.remove('playing'); // 隱藏圖片，顯示問號
+            statusDisplay.innerText = "挑戰結束！";
+            timerDisplay.innerText = "時間到！";
+            startBtn.disabled = false;
             audio.pause();
-            document.getElementById('startBtn').disabled = false;
-            document.getElementById('stopBtn').disabled = true;
+            audio.currentTime = 0; // 重置音樂
+        }
+
+        function resetGame() {
+            endGame();
+            statusDisplay.innerText = "已重置。可重新調整時間或開始。";
+            timerDisplay.innerText = "";
         }
     </script>
 </body>
