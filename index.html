@@ -3,141 +3,153 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>八格挑戰：多題組隨機版</title>
+    <title>八格挑戰：精選4圖填滿版</title>
     <style>
-        :root { --bg: #121212; --panel: #252525; --accent: #00fbff; }
-        body { font-family: sans-serif; background: var(--bg); color: white; display: flex; flex-direction: column; align-items: center; padding: 20px; }
+        :root { --bg: #1a1a1a; --card: #2d2d2d; --accent: #00d2ff; --text: #ffffff; }
+        body { font-family: 'PingFang TC', sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
         
-        .setup-area { background: var(--panel); padding: 20px; border-radius: 15px; width: 100%; max-width: 800px; margin-bottom: 20px; }
-        .group-config { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; margin-top: 10px; }
-        .group-item { background: #333; padding: 10px; border-radius: 8px; font-size: 14px; }
+        .panel { background: var(--card); padding: 20px; border-radius: 12px; width: 90%; max-width: 900px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .setup-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        .group-box { background: #3d3d3d; padding: 10px; border-radius: 8px; border: 1px solid #555; }
+        .group-box label { font-size: 14px; font-weight: bold; color: var(--accent); }
         
-        .game-controls { margin: 20px 0; display: flex; gap: 15px; align-items: center; }
-        select, button { padding: 10px 20px; border-radius: 5px; border: none; font-size: 16px; cursor: pointer; }
-        #startBtn { background: var(--accent); color: #000; font-weight: bold; }
+        .game-nav { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center; padding: 15px; border-top: 1px solid #444; }
         
-        /* 4x2 網格 */
+        input[type="file"] { width: 100%; margin-top: 5px; font-size: 12px; }
+        button { padding: 10px 25px; border-radius: 5px; border: none; font-size: 16px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        #startBtn { background: #ff4757; color: white; }
+        #startBtn:hover { background: #ff6b81; transform: scale(1.05); }
+
+        /* 4x2 網格設計 */
         .grid-container {
-            display: grid; grid-template-columns: repeat(4, 150px); grid-template-rows: repeat(2, 150px);
-            gap: 15px; margin-top: 20px;
+            display: grid; grid-template-columns: repeat(4, 180px); grid-template-rows: repeat(2, 180px);
+            gap: 15px; margin-top: 30px;
         }
         .box {
-            width: 150px; height: 150px; background: #333; border-radius: 10px;
+            width: 180px; height: 180px; background: #333; border-radius: 12px;
             display: flex; align-items: center; justify-content: center;
-            overflow: hidden; border: 2px solid #444; position: relative;
+            overflow: hidden; border: 3px solid #444; position: relative;
         }
         .box img { width: 100%; height: 100%; object-fit: cover; display: none; }
-        .box.show img { display: block; }
-        .box::before { content: '?'; font-size: 30px; color: #555; position: absolute; }
-        .box.show::before { display: none; }
+        .box.active img { display: block; }
+        .box::before { content: '？'; font-size: 40px; color: #555; position: absolute; }
+        .box.active::before { display: none; }
 
-        #timer { font-size: 40px; color: #ff4757; font-family: monospace; margin: 10px; }
+        #timer-text { font-size: 48px; color: #f1c40f; margin: 20px 0; font-family: monospace; text-shadow: 0 0 10px rgba(241, 196, 15, 0.5); }
     </style>
 </head>
 <body>
 
-    <h1>🎙️ 八格挑戰：題組隨機版</h1>
+    <h1>🎙️ 八格挑戰：4圖隨機分配</h1>
 
-    <div class="setup-area">
-        <h3>1. 設定題組 (每組請傳 8 張)</h3>
-        <div class="group-config">
-            <div class="group-item">
-                <label>題組 A：</label><input type="file" multiple onchange="loadGroup(0, this)">
-                <div id="status0">未載入</div>
+    <div class="panel">
+        <div class="setup-grid">
+            <div class="group-box"><label>題庫 1 (上傳8張)</label><input type="file" multiple onchange="loadImages(0, this)"><div id="s0">待命</div></div>
+            <div class="group-box"><label>題庫 2 (上傳8張)</label><input type="file" multiple onchange="loadImages(1, this)"><div id="s1">待命</div></div>
+            <div class="group-box"><label>題庫 3 (上傳8張)</label><input type="file" multiple onchange="loadImages(2, this)"><div id="s2">待命</div></div>
+            <div class="group-box"><label>題庫 4 (上傳8張)</label><input type="file" multiple onchange="loadImages(3, this)"><div id="s3">待命</div></div>
+            <div class="group-box"><label>題庫 5 (上傳8張)</label><input type="file" multiple onchange="loadImages(4, this)"><div id="s4">待命</div></div>
+            <div class="group-box"><label>題庫 6 (上傳8張)</label><input type="file" multiple onchange="loadImages(5, this)"><div id="s5">待命</div></div>
+        </div>
+
+        <div class="game-nav">
+            <div>
+                選擇題庫：
+                <select id="bankSelector" style="padding: 8px;">
+                    <option value="0">題庫 1</option><option value="1">題庫 2</option>
+                    <option value="2">題庫 3</option><option value="3">題庫 4</option>
+                    <option value="4">題庫 5</option><option value="5">題庫 6</option>
+                </select>
             </div>
-            <div class="group-item">
-                <label>題組 B：</label><input type="file" multiple onchange="loadGroup(1, this)">
-                <div id="status1">未載入</div>
+            <div>
+                挑戰秒數：<input type="number" id="duration" value="8" style="width: 50px; padding: 8px;">
             </div>
-            <div class="group-item">
-                <label>題組 C：</label><input type="file" multiple onchange="loadGroup(2, this)">
-                <div id="status2">未載入</div>
+            <div>
+                音樂連結：<input type="text" id="musicUrl" placeholder="MP3 URL (後補)" style="padding: 8px;">
             </div>
-            <div class="group-item">
-                <label>題組 D：</label><input type="file" multiple onchange="loadGroup(3, this)">
-                <div id="status3">未載入</div>
-            </div>
+            <button id="startBtn" onclick="initGame()">開始挑戰</button>
         </div>
     </div>
 
-    <div class="game-controls">
-        <select id="groupSelect">
-            <option value="0">使用 題組 A</option>
-            <option value="1">使用 題組 B</option>
-            <option value="2">使用 題組 C</option>
-            <option value="3">使用 題組 D</option>
-        </select>
-        <span>秒數：</span>
-        <input type="number" id="secInput" value="10" style="width: 50px; padding: 8px;">
-        <button id="startBtn" onclick="startChallenge()">開始隨機挑戰</button>
+    <div id="timer-text">--</div>
+
+    <div class="grid-container" id="gameGrid">
+        <div class="box" id="grid-0"></div><div class="box" id="grid-1"></div><div class="box" id="grid-2"></div><div class="box" id="grid-3"></div>
+        <div class="box" id="grid-4"></div><div class="box" id="grid-5"></div><div class="box" id="grid-6"></div><div class="box" id="grid-7"></div>
     </div>
 
-    <div id="timer">--</div>
-
-    <div class="grid-container" id="mainGrid">
-        <div class="box" id="b0"></div><div class="box" id="b1"></div><div class="box" id="b2"></div><div class="box" id="b3"></div>
-        <div class="box" id="b4"></div><div class="box" id="b5"></div><div class="box" id="b6"></div><div class="box" id="b7"></div>
-    </div>
+    <audio id="audioPlayer"></audio>
 
     <script>
-        let allGroups = [[], [], [], []]; // 存放四個題組的圖片
+        let banks = [[], [], [], [], [], []]; // 儲存 6 組題庫
 
-        function loadGroup(idx, input) {
+        // 讀取圖片
+        function loadImages(idx, input) {
             const files = Array.from(input.files);
-            allGroups[idx] = [];
-            let count = 0;
+            banks[idx] = [];
+            let loaded = 0;
             files.forEach(f => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
-                    allGroups[idx].push(e.target.result);
-                    count++;
-                    document.getElementById(`status${idx}`).innerText = `已載入 ${count} 張`;
+                    banks[idx].push(e.target.result);
+                    loaded++;
+                    document.getElementById(`s${idx}`).innerText = `已載入 ${loaded} 張`;
                 };
                 reader.readAsDataURL(f);
             });
         }
 
-        function startChallenge() {
-            const groupIdx = document.getElementById('groupSelect').value;
-            const sourceImages = allGroups[groupIdx];
-            
-            if (sourceImages.length < 4) {
-                alert("該題組圖片不足 4 張！");
+        function initGame() {
+            const bankIdx = document.getElementById('bankSelector').value;
+            const currentBank = banks[bankIdx];
+
+            if (currentBank.length < 8) {
+                alert("該題庫圖片不足 8 張，請重新上傳！");
                 return;
             }
 
-            // 1. 清除舊狀態
+            // 1. 從 8 張中隨機選出 4 張
+            const shuffledPool = [...currentBank].sort(() => 0.5 - Math.random());
+            const luckyFour = shuffledPool.slice(0, 4);
+
+            // 2. 將這 4 張圖填入 8 個格子 (每張出現兩次)
+            // 你也可以改成完全隨機：const gridImages = Array.from({length: 8}, () => luckyFour[Math.floor(Math.random() * 4)]);
+            let gridImages = [...luckyFour, ...luckyFour]; // 確保每張出現兩次，平衡度較好
+            gridImages.sort(() => 0.5 - Math.random()); // 打亂這 8 張圖的順序
+
+            // 3. 渲染到網格
             const boxes = document.querySelectorAll('.box');
-            boxes.forEach(b => { b.innerHTML = ""; b.classList.remove('show'); });
-
-            // 2. 從該題組隨機選 4 張不重複的圖
-            const shuffledImgs = [...sourceImages].sort(() => 0.5 - Math.random());
-            const selectedImgs = shuffledImgs.slice(0, 4);
-
-            // 3. 隨機決定這 4 張圖要放在 8 個位置中的哪幾個
-            const positions = [0, 1, 2, 3, 4, 5, 6, 7].sort(() => 0.5 - Math.random());
-            const selectedPos = positions.slice(0, 4);
-
-            // 4. 填入圖片
-            selectedPos.forEach((pos, index) => {
-                const img = document.createElement('img');
-                img.src = selectedImgs[index];
-                document.getElementById(`b${pos}`).appendChild(img);
-                document.getElementById(`b${pos}`).classList.add('show');
+            boxes.forEach((box, i) => {
+                box.innerHTML = `<img src="${gridImages[i]}">`;
+                box.classList.add('active'); // 顯示圖片
             });
 
-            // 5. 倒數計時
-            let sec = parseInt(document.getElementById('secInput').value);
-            const timerEl = document.getElementById('timer');
-            timerEl.innerText = sec;
+            // 4. 音樂與倒數
+            startFlow();
+        }
 
+        function startFlow() {
+            const audio = document.getElementById('audioPlayer');
+            const musicUrl = document.getElementById('musicUrl').value;
+            const timerDisplay = document.getElementById('timer-text');
+            let timeLeft = parseInt(document.getElementById('duration').value);
+
+            if (musicUrl) {
+                audio.src = musicUrl;
+                audio.play();
+            }
+
+            timerDisplay.innerText = timeLeft;
             const countdown = setInterval(() => {
-                sec--;
-                timerEl.innerText = sec;
-                if (sec <= 0) {
+                timeLeft--;
+                timerDisplay.innerText = timeLeft;
+                if (timeLeft <= 0) {
                     clearInterval(countdown);
-                    timerEl.innerText = "時間到！";
-                    boxes.forEach(b => b.classList.remove('show')); // 隱藏圖片
+                    timerDisplay.innerText = "時間到！";
+                    // 隱藏所有圖片
+                    document.querySelectorAll('.box').forEach(b => b.classList.remove('active'));
+                    audio.pause();
+                    audio.currentTime = 0;
                 }
             }, 1000);
         }
