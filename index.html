@@ -3,155 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>八格挑戰：精選4圖填滿版</title>
+    <title>8-Grid Challenge - Room Sync</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --bg: #1a1a1a; --card: #2d2d2d; --accent: #00d2ff; --text: #ffffff; }
-        body { font-family: 'PingFang TC', sans-serif; background: var(--bg); color: var(--text); display: flex; flex-direction: column; align-items: center; padding: 20px; margin: 0; }
-        
-        .panel { background: var(--card); padding: 20px; border-radius: 12px; width: 90%; max-width: 900px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        .setup-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
-        .group-box { background: #3d3d3d; padding: 10px; border-radius: 8px; border: 1px solid #555; }
-        .group-box label { font-size: 14px; font-weight: bold; color: var(--accent); }
-        
-        .game-nav { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center; padding: 15px; border-top: 1px solid #444; }
-        
-        input[type="file"] { width: 100%; margin-top: 5px; font-size: 12px; }
-        button { padding: 10px 25px; border-radius: 5px; border: none; font-size: 16px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        #startBtn { background: #ff4757; color: white; }
-        #startBtn:hover { background: #ff6b81; transform: scale(1.05); }
+        :root { --bg: #121212; --panel: #2d2d2d; --accent: #00d2ff; }
+        body { font-family: sans-serif; background: var(--bg); color: white; margin: 0; padding: 20px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: var(--panel); padding: 20px; border-radius: 12px; width: 90%; max-width: 600px; margin-top: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .hidden { display: none; }
+        input, select, button { padding: 10px; border-radius: 5px; border: none; margin: 5px 0; font-size: 16px; }
+        button { cursor: pointer; background: #444; color: white; transition: 0.2s; }
+        button:hover { background: #555; }
+        .btn-start { background: #ff4757; font-weight: bold; width: 100%; margin-top: 15px; }
+        .status { font-size: 13px; color: #888; margin-top: 5px; }
 
-        /* 4x2 網格設計 */
-        .grid-container {
-            display: grid; grid-template-columns: repeat(4, 180px); grid-template-rows: repeat(2, 180px);
-            gap: 15px; margin-top: 30px;
-        }
-        .box {
-            width: 180px; height: 180px; background: #333; border-radius: 12px;
-            display: flex; align-items: center; justify-content: center;
-            overflow: hidden; border: 3px solid #444; position: relative;
-        }
+        /* 遊戲舞台樣式 (另開視窗用) */
+        #stage-content { text-align: center; width: 100vw; height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #000; }
+        .grid { display: grid; grid-template-columns: repeat(4, 200px); grid-template-rows: repeat(2, 200px); gap: 15px; }
+        .box { width: 200px; height: 200px; background: #222; border-radius: 10px; overflow: hidden; position: relative; border: 3px solid #333; }
         .box img { width: 100%; height: 100%; object-fit: cover; display: none; }
         .box.active img { display: block; }
-        .box::before { content: '？'; font-size: 40px; color: #555; position: absolute; }
-        .box.active::before { display: none; }
-
-        #timer-text { font-size: 48px; color: #f1c40f; margin: 20px 0; font-family: monospace; text-shadow: 0 0 10px rgba(241, 196, 15, 0.5); }
+        #countdown-overlay { position: absolute; font-size: 150px; font-weight: bold; color: var(--accent); z-index: 10; text-shadow: 0 0 20px rgba(0,210,255,0.5); }
+        #timer-bar { font-size: 40px; margin-bottom: 20px; color: #f1c40f; }
+        #round-info { position: absolute; top: 20px; left: 20px; font-size: 24px; color: #888; }
     </style>
 </head>
 <body>
 
-    <h1>🎙️ 八格挑戰：4圖隨機分配</h1>
-
-    <div class="panel">
-        <div class="setup-grid">
-            <div class="group-box"><label>題庫 1 (上傳8張)</label><input type="file" multiple onchange="loadImages(0, this)"><div id="s0">待命</div></div>
-            <div class="group-box"><label>題庫 2 (上傳8張)</label><input type="file" multiple onchange="loadImages(1, this)"><div id="s1">待命</div></div>
-            <div class="group-box"><label>題庫 3 (上傳8張)</label><input type="file" multiple onchange="loadImages(2, this)"><div id="s2">待命</div></div>
-            <div class="group-box"><label>題庫 4 (上傳8張)</label><input type="file" multiple onchange="loadImages(3, this)"><div id="s3">待命</div></div>
-            <div class="group-box"><label>題庫 5 (上傳8張)</label><input type="file" multiple onchange="loadImages(4, this)"><div id="s4">待命</div></div>
-            <div class="group-box"><label>題庫 6 (上傳8張)</label><input type="file" multiple onchange="loadImages(5, this)"><div id="s5">待命</div></div>
-        </div>
-
-        <div class="game-nav">
-            <div>
-                選擇題庫：
-                <select id="bankSelector" style="padding: 8px;">
-                    <option value="0">題庫 1</option><option value="1">題庫 2</option>
-                    <option value="2">題庫 3</option><option value="3">題庫 4</option>
-                    <option value="4">題庫 5</option><option value="5">題庫 6</option>
-                </select>
-            </div>
-            <div>
-                挑戰秒數：<input type="number" id="duration" value="8" style="width: 50px; padding: 8px;">
-            </div>
-            <div>
-                音樂連結：<input type="text" id="musicUrl" placeholder="MP3 URL (後補)" style="padding: 8px;">
-            </div>
-            <button id="startBtn" onclick="initGame()">開始挑戰</button>
+    <div id="room-setup">
+        <h1>🎙️ 八格挑戰房間</h1>
+        <div class="card">
+            <input type="text" id="roomInput" placeholder="輸入房間名稱 (例如: myroom123)" style="width: 80%;">
+            <button onclick="joinRoom()">進入房間</button>
+            <p class="status">輸入相同房間號的裝置將會同步設定</p>
         </div>
     </div>
 
-    <div id="timer-text">--</div>
+    <div id="main-ui" class="hidden">
+        <h2 id="room-display">房間: --</h2>
+        <div class="card">
+            <h3>1. 上傳題庫</h3>
+            <select id="bankSelector" style="width: 100%;">
+                <option value="0">題庫 1</option><option value="1">題庫 2</option>
+                <option value="2">題庫 3</option>
+            </select>
+            <input type="file" id="imageInput" multiple accept="image/*" onchange="handleUpload()">
+            <div id="bank-status" class="status">目前圖片數: 0</div>
+        </div>
 
-    <div class="grid-container" id="gameGrid">
-        <div class="box" id="grid-0"></div><div class="box" id="grid-1"></div><div class="box" id="grid-2"></div><div class="box" id="grid-3"></div>
-        <div class="box" id="grid-4"></div><div class="box" id="grid-5"></div><div class="box" id="grid-6"></div><div class="box" id="grid-7"></div>
+        <div class="card">
+            <h3>2. 挑戰設定</h3>
+            單次挑戰秒數: <input type="number" id="secInput" value="8" style="width: 60px;">
+            <button class="btn-start" onclick="openAndStart()">🚀 開始挑戰 (開啟新視窗)</button>
+        </div>
     </div>
 
-    <audio id="audioPlayer"></audio>
+    <div id="stage-ui" class="hidden">
+        <div id="stage-content">
+            <div id="round-info">ROUND 1/3</div>
+            <div id="timer-bar">READY</div>
+            <div id="countdown-overlay" class="hidden"></div>
+            <div class="grid" id="gameGrid">
+                <div class="box"></div><div class="box"></div><div class="box"></div><div class="box"></div>
+                <div class="box"></div><div class="box"></div><div class="box"></div><div class="box"></div>
+            </div>
+        </div>
+    </div>
 
     <script>
-        let banks = [[], [], [], [], [], []]; // 儲存 6 組題庫
+        let peer, conn;
+        let banks = [[], [], []];
+        const bc = new BroadcastChannel('game_sync');
 
-        // 讀取圖片
-        function loadImages(idx, input) {
-            const files = Array.from(input.files);
-            banks[idx] = [];
+        // --- 房間同步邏輯 ---
+        function joinRoom() {
+            const roomId = document.getElementById('roomInput').value;
+            if (!roomId) return alert("請輸入房間號");
+
+            // 這裡使用 '8grid-' 作為前綴避免衝突
+            peer = new Peer('8grid-' + roomId);
+            
+            peer.on('open', (id) => {
+                document.getElementById('room-setup').classList.add('hidden');
+                document.getElementById('main-ui').classList.remove('hidden');
+                document.getElementById('room-display').innerText = "房間: " + roomId;
+            });
+
+            peer.on('connection', (c) => {
+                c.on('data', data => syncState(data));
+            });
+
+            // 嘗試連接現有的房主 (如有)
+            setTimeout(() => {
+                const c = peer.connect('8grid-' + roomId);
+                c.on('open', () => { conn = c; });
+            }, 1000);
+        }
+
+        function handleUpload() {
+            const idx = document.getElementById('bankSelector').value;
+            const files = Array.from(document.getElementById('imageInput').files);
             let loaded = 0;
+            banks[idx] = [];
+            
             files.forEach(f => {
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     banks[idx].push(e.target.result);
                     loaded++;
-                    document.getElementById(`s${idx}`).innerText = `已載入 ${loaded} 張`;
+                    if(loaded === files.length) {
+                        document.getElementById('bank-status').innerText = `目前圖片數: ${banks[idx].length}`;
+                        broadcastState();
+                    }
                 };
                 reader.readAsDataURL(f);
             });
         }
 
-        function initGame() {
-            const bankIdx = document.getElementById('bankSelector').value;
-            const currentBank = banks[bankIdx];
-
-            if (currentBank.length < 8) {
-                alert("該題庫圖片不足 8 張，請重新上傳！");
-                return;
+        function broadcastState() {
+            if (conn) {
+                conn.send({ type: 'SYNC', banks: banks, sec: document.getElementById('secInput').value });
             }
-
-            // 1. 從 8 張中隨機選出 4 張
-            const shuffledPool = [...currentBank].sort(() => 0.5 - Math.random());
-            const luckyFour = shuffledPool.slice(0, 4);
-
-            // 2. 將這 4 張圖填入 8 個格子 (每張出現兩次)
-            // 你也可以改成完全隨機：const gridImages = Array.from({length: 8}, () => luckyFour[Math.floor(Math.random() * 4)]);
-            let gridImages = [...luckyFour, ...luckyFour]; // 確保每張出現兩次，平衡度較好
-            gridImages.sort(() => 0.5 - Math.random()); // 打亂這 8 張圖的順序
-
-            // 3. 渲染到網格
-            const boxes = document.querySelectorAll('.box');
-            boxes.forEach((box, i) => {
-                box.innerHTML = `<img src="${gridImages[i]}">`;
-                box.classList.add('active'); // 顯示圖片
-            });
-
-            // 4. 音樂與倒數
-            startFlow();
         }
 
-        function startFlow() {
-            const audio = document.getElementById('audioPlayer');
-            const musicUrl = document.getElementById('musicUrl').value;
-            const timerDisplay = document.getElementById('timer-text');
-            let timeLeft = parseInt(document.getElementById('duration').value);
+        function syncState(data) {
+            if (data.type === 'SYNC') {
+                banks = data.banks;
+                document.getElementById('secInput').value = data.sec;
+                const idx = document.getElementById('bankSelector').value;
+                document.getElementById('bank-status').innerText = `目前圖片數: ${banks[idx].length}`;
+            }
+        }
 
-            if (musicUrl) {
-                audio.src = musicUrl;
-                audio.play();
+        // --- 遊戲控制邏輯 ---
+        function openAndStart() {
+            const bankIdx = document.getElementById('bankSelector').value;
+            if (banks[bankIdx].length < 8) return alert("題庫圖片不足 8 張！");
+
+            // 開啟新視窗
+            const stageWin = window.open('', 'GameDisplay', 'width=1200,height=800');
+            stageWin.document.write(document.documentElement.innerHTML);
+            
+            // 通知新視窗開始 (延遲確保視窗載入完成)
+            setTimeout(() => {
+                const data = {
+                    type: 'GAME_START',
+                    bank: banks[bankIdx],
+                    sec: document.getElementById('secInput').value
+                };
+                bc.postMessage(data);
+            }, 1000);
+        }
+
+        // --- 舞台執行邏輯 (循環挑戰) ---
+        bc.onmessage = async (e) => {
+            if (e.data.type === 'GAME_START') {
+                document.getElementById('main-ui').classList.add('hidden');
+                document.getElementById('stage-ui').classList.remove('hidden');
+                
+                // 執行三個循環
+                for (let i = 1; i <= 3; i++) {
+                    await startOneCycle(i, e.data.bank, e.data.sec);
+                }
+                
+                document.getElementById('timer-bar').innerText = "挑戰完成！";
+            }
+        };
+
+        async function startOneCycle(round, bank, sec) {
+            const timerEl = document.getElementById('timer-bar');
+            const roundEl = document.getElementById('round-info');
+            const overlay = document.getElementById('countdown-overlay');
+            const boxes = document.querySelectorAll('.box');
+
+            roundEl.innerText = `ROUND ${round}/3`;
+            boxes.forEach(b => b.classList.remove('active'));
+
+            // 1. 倒數 3, 2, 1
+            overlay.classList.remove('hidden');
+            for (let c = 3; c > 0; c--) {
+                overlay.innerText = c;
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            overlay.classList.add('hidden');
+
+            // 2. 隨機選4張並填滿8格
+            const luckyFour = [...bank].sort(() => 0.5 - Math.random()).slice(0, 4);
+            const gridImgs = [...luckyFour, ...luckyFour].sort(() => 0.5 - Math.random());
+
+            boxes.forEach((box, i) => {
+                box.innerHTML = `<img src="${gridImgs[i]}" style="display:block">`;
+                box.classList.add('active');
+            });
+
+            // 3. 挑戰計時
+            let timeLeft = sec;
+            timerEl.innerText = timeLeft + "s";
+            while (timeLeft > 0) {
+                await new Promise(r => setTimeout(r, 1000));
+                timeLeft--;
+                timerEl.innerText = timeLeft + "s";
             }
 
-            timerDisplay.innerText = timeLeft;
-            const countdown = setInterval(() => {
-                timeLeft--;
-                timerDisplay.innerText = timeLeft;
-                if (timeLeft <= 0) {
-                    clearInterval(countdown);
-                    timerDisplay.innerText = "時間到！";
-                    // 隱藏所有圖片
-                    document.querySelectorAll('.box').forEach(b => b.classList.remove('active'));
-                    audio.pause();
-                    audio.currentTime = 0;
-                }
-            }, 1000);
+            // 4. 清除狀態並休息一下
+            boxes.forEach(b => b.classList.remove('active'));
+            timerEl.innerText = "休息一下...";
+            await new Promise(r => setTimeout(r, 2000));
         }
     </script>
 </body>
